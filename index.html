@@ -1,0 +1,326 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Password Strength Analyzer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #141e30, #243b55);
+      padding: 20px;
+    }
+
+    .container {
+      background: #fff;
+      width: 100%;
+      max-width: 440px;
+      padding: 30px;
+      border-radius: 18px;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, .3);
+    }
+
+    h1 {
+      text-align: center;
+      color: #243b55;
+      font-size: 26px;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 25px;
+      font-size: 14px;
+    }
+
+    .input-box {
+      display: flex;
+      border: 2px solid #ddd;
+      border-radius: 9px;
+      overflow: hidden;
+    }
+
+    .input-box:focus-within {
+      border-color: #2563eb;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      outline: none;
+      font-size: 16px;
+      min-width: 0;
+    }
+
+    .toggle {
+      border: none;
+      background: #fff;
+      padding: 0 13px;
+      cursor: pointer;
+      color: #2563eb;
+    }
+
+    .strength-info {
+      display: flex;
+      justify-content: space-between;
+      margin: 20px 0 8px;
+      font-size: 14px;
+    }
+
+    #strengthText {
+      font-weight: bold;
+      color: #777;
+    }
+
+    .progress {
+      height: 9px;
+      background: #e5e7eb;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    #bar {
+      height: 100%;
+      width: 0;
+      background: #ef4444;
+      transition: width .3s, background .3s;
+    }
+
+    h3 {
+      font-size: 17px;
+      margin: 24px 0 15px;
+      color: #243b55;
+    }
+
+    .rule {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 12px 0;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .rule span {
+      font-size: 18px;
+      width: 20px;
+    }
+
+    .rule.valid {
+      color: #16a34a;
+    }
+
+    .rule.valid span {
+      color: #16a34a;
+    }
+
+    #suggestion {
+      background: #f3f4f6;
+      padding: 13px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #374151;
+    }
+
+    .note {
+      font-size: 12px;
+      color: #777;
+      margin-top: 18px;
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>🔐 Password Analyzer</h1>
+    <p class="subtitle">Check your password security instantly</p>
+
+    <div class="input-box">
+      <input
+        type="password"
+        id="password"
+        placeholder="Enter a password..."
+        autocomplete="off"
+        spellcheck="false"
+        aria-label="Password to analyze"
+      >
+      <button class="toggle" id="toggle"
+        type="button" aria-label="Show password">Show</button>
+    </div>
+
+    <div class="strength-info">
+      <span>Password strength</span>
+      <span id="strengthText">No password</span>
+    </div>
+
+    <div class="progress">
+      <div id="bar"></div>
+    </div>
+
+    <h3>Security Checklist</h3>
+
+    <div class="rule" id="length">
+      <span>○</span> At least 12 characters
+    </div>
+    <div class="rule" id="upper">
+      <span>○</span> Uppercase letter (A-Z)
+    </div>
+    <div class="rule" id="lower">
+      <span>○</span> Lowercase letter (a-z)
+    </div>
+    <div class="rule" id="number">
+      <span>○</span> Number (0-9)
+    </div>
+    <div class="rule" id="special">
+      <span>○</span> Special character (!@#$%)
+    </div>
+    <div class="rule" id="repeat">
+      <span>○</span> No 3+ repeated characters
+    </div>
+
+    <div id="suggestion" aria-live="polite">
+      Enter a password to see recommendations.
+    </div>
+
+    <p class="note">
+      For privacy, this page analyzes passwords locally.
+      Avoid testing passwords you currently use on an
+      untrusted website.
+    </p>
+  </main>
+
+  <script>
+    const password = document.getElementById("password");
+    const toggle = document.getElementById("toggle");
+    const bar = document.getElementById("bar");
+    const strengthText = document.getElementById("strengthText");
+    const suggestion = document.getElementById("suggestion");
+
+    const rules = {
+      length: p => [...p].length >= 12,
+      upper: p => /[A-Z]/.test(p),
+      lower: p => /[a-z]/.test(p),
+      number: p => /[0-9]/.test(p),
+      special: p => /[^A-Za-z0-9]/.test(p),
+      repeat: p => !/(.)\1{2,}/u.test(p)
+    };
+
+    function analyzePassword() {
+      const p = password.value;
+
+      if (!p) {
+        bar.style.width = "0";
+        strengthText.textContent = "No password";
+        strengthText.style.color = "#777";
+        suggestion.textContent =
+          "Enter a password to see recommendations.";
+
+        Object.keys(rules).forEach(id => {
+          const item = document.getElementById(id);
+          item.classList.remove("valid");
+          item.querySelector("span").textContent = "○";
+        });
+        return;
+      }
+
+      let passed = 0;
+      const tips = [];
+
+      for (const [id, test] of Object.entries(rules)) {
+        const ok = test(p);
+        const item = document.getElementById(id);
+
+        item.classList.toggle("valid", ok);
+        item.querySelector("span").textContent = ok ? "✓" : "○";
+
+        if (ok) passed++;
+      }
+
+      const length = [...p].length;
+      let score = Math.round((passed / 6) * 100);
+
+      // Penalize predictable password patterns.
+      if (/password|qwerty|123456|abcdef/i.test(p)) {
+        score = Math.max(0, score - 25);
+      }
+
+      if (length < 8) score = Math.min(score, 25);
+      else if (length < 12) score = Math.min(score, 55);
+
+      let label, color;
+
+      if (score < 30) {
+        label = "Weak";
+        color = "#ef4444";
+      } else if (score < 50) {
+        label = "Fair";
+        color = "#f97316";
+      } else if (score < 75) {
+        label = "Good";
+        color = "#eab308";
+      } else if (score < 90) {
+        label = "Strong";
+        color = "#22c55e";
+      } else {
+        label = "Very strong";
+        color = "#15803d";
+      }
+
+      bar.style.width = score + "%";
+      bar.style.background = color;
+      strengthText.textContent = label;
+      strengthText.style.color = color;
+
+      if (length < 12)
+        tips.push("Use at least 12 characters, preferably 16 or more.");
+      if (!rules.upper(p))
+        tips.push("Add an uppercase letter.");
+      if (!rules.lower(p))
+        tips.push("Add a lowercase letter.");
+      if (!rules.number(p))
+        tips.push("Consider adding a number.");
+      if (!rules.special(p))
+        tips.push("Consider adding a special character.");
+      if (!rules.repeat(p))
+        tips.push("Avoid 3 or more repeated characters in a row.");
+      if (/password|qwerty|123456|abcdef/i.test(p))
+        tips.push("Avoid common words and predictable sequences.");
+
+      if (tips.length === 0) {
+        tips.push("Good checklist results! Make sure this password is unique and randomly generated.");
+      }
+
+      suggestion.textContent = tips.join(" ");
+    }
+
+    password.addEventListener("input", analyzePassword);
+
+    toggle.addEventListener("click", () => {
+      const hidden = password.type === "password";
+      password.type = hidden ? "text" : "password";
+      toggle.textContent = hidden ? "Hide" : "Show";
+      toggle.setAttribute(
+        "aria-label",
+        hidden ? "Hide password" : "Show password"
+      );
+    });
+  </script>
+</body>
+</html>
+  
